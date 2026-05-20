@@ -1,0 +1,106 @@
+version: "3.8"
+
+services:
+  gateway:
+    image: emulador-gateway:latest
+    build: ./gateway
+    networks:
+      - interna
+      - emulador-internal
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - whatsapp-apk:/apk:rw
+    environment:
+      - DATABASE_URL=postgres://emulador:${DB_PASSWORD}@postgres:5432/emulador?sslmode=disable
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET=${JWT_SECRET}
+      - ADB_HOST=172.17.0.1
+      - WHATSAPP_APK_PATH=/apk/whatsapp.apk
+      - PORT=8080
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      replicas: 1
+      placement:
+          constraints:
+            - node.role == manager
+      resources:
+        limits:
+          memory: 128M
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=interna
+        - traefik.http.routers.emulador-api.rule=Host(`emulador.trecofantastico.com.br`) && (PathPrefix(`/api`) || PathPrefix(`/health`))
+        - traefik.http.routers.emulador-api.entrypoints=websecure
+        - traefik.http.routers.emulador-api.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.emulador-api.priority=100
+        - traefik.http.services.emulador-api.loadbalancer.server.port=8080
+        - traefik.http.services.emulador-api.loadbalancer.passHostHeader=true
+
+  frontend:
+    image: emulador-frontend:latest
+    build: ./frontend
+    networks:
+      - interna
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 64M
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=interna
+        - traefik.http.routers.emulador-frontend.rule=Host(`emulador.trecofantastico.com.br`)
+        - traefik.http.routers.emulador-frontend.entrypoints=websecure
+        - traefik.http.routers.emulador-frontend.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.emulador-frontend.priority=1
+        - traefik.http.services.emulador-frontend.loadbalancer.server.port=80
+
+  postgres:
+    image: postgres:15-alpine
+    networks:
+      - emulador-internal
+    environment:
+      - POSTGRES_DB=emulador
+      - POSTGRES_USER=emulador
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - emulador-pgdata:/var/lib/postgresql/data
+    deploy:
+      replicas: 1
+      placement:
+          constraints:
+            - node.role == manager
+      resources:
+        limits:
+          memory: 256M
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    networks:
+      - emulador-internal
+    volumes:
+      - emulador-redis:/data
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 128M
+
+networks:
+  interna:
+    external: true
+  emulador-internal:
+    driver: overlay
+
+volumes:
+  emulador-pgdata:
+  emulador-redis:
+  whatsapp-apk:

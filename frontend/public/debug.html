@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head><title>Stream Debug</title></head>
+<body style="background:#111;color:#fff;font-family:monospace;padding:20px">
+<h2>WebSocket Stream Debug</h2>
+<div>
+  <input id="email" value="admin@emulador.com" style="width:200px;padding:5px">
+  <input id="pass" value="Admin123!" type="password" style="width:150px;padding:5px">
+  <button onclick="login()" style="padding:5px 15px">Login</button>
+</div>
+<div id="log" style="margin:10px 0;padding:10px;background:#222;max-height:300px;overflow:auto"></div>
+<div>
+  <select id="deviceSelect" style="padding:5px"></select>
+  <button onclick="startStream()" style="padding:5px 15px">Start Stream</button>
+  <button onclick="stopStream()" style="padding:5px 15px">Stop</button>
+</div>
+<div style="margin-top:10px">
+  <canvas id="screen" width="360" height="640" style="border:1px solid #444;max-width:360px"></canvas>
+</div>
+<div id="stats" style="margin-top:5px"></div>
+
+<script>
+let token = null;
+let ws = null;
+let frameCount = 0;
+let startTime = 0;
+
+function log(msg) {
+  const el = document.getElementById('log');
+  el.innerHTML += new Date().toLocaleTimeString() + ' ' + msg + '<br>';
+  el.scrollTop = el.scrollHeight;
+}
+
+async function login() {
+  const email = document.getElementById('email').value;
+  const pass = document.getElementById('pass').value;
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email, password: pass})
+    });
+    const data = await res.json();
+    if (data.data && data.data.token) {
+      token = data.data.token;
+      log('Login OK. Token: ' + token.substring(0,20) + '...');
+      loadDevices();
+    } else {
+      log('Login failed: ' + JSON.stringify(data));
+    }
+  } catch(e) { log('Login error: ' + e.message); }
+}
+
+async function loadDevices() {
+  const res = await fetch('/api/devices', {headers: {'Authorization': 'Bearer ' + token}});
+  const data = await res.json();
+  const sel = document.getElementById('deviceSelect');
+  sel.innerHTML = '';
+  (data.data || []).forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.text = d.name + ' (' + d.status + ') - ' + (d.container_name || 'no container');
+    sel.appendChild(opt);
+  });
+  log('Loaded ' + (data.data || []).length + ' devices');
+}
+
+function startStream() {
+  const deviceId = document.getElementById('deviceSelect').value;
+  if (!deviceId || !token) { log('No device or token'); return; }
+
+  stopStream();
+
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url = protocol + '//' + location.host + '/api/devices/' + deviceId + '/stream?token=' + token;
+  log('Connecting to: ' + url);
+
+  ws = new WebSocket(url);
+  ws.binaryType = 'arraybuffer';
+  frameCount = 0;
+  startTime = Date.now();
+
+  ws.onopen = () => log('WebSocket OPEN');
+  ws.onclose = (e) => log('WebSocket CLOSED code=' + e.code + ' reason=' + e.reason);
+  ws.onerror = (e) => log('WebSocket ERROR');
+
+  ws.onmessage = (event) => {
+    if (event.data instanceof ArrayBuffer) {
+      frameCount++;
+      const bytes = event.data.byteLength;
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+      document.getElementById('stats').textContent =
+        'Frames: ' + frameCount + ' | Last: ' + bytes + ' bytes | Time: ' + elapsed + 's';
+
+      if (frameCount <= 5) {
+        log('FRAME #' + frameCount + ': ' + bytes + ' bytes (arraybuffer)');
+      }
+
+      // Try to render
+      const blob = new Blob([event.data], {type: 'image/jpeg'});
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.getElementById('screen');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        if (frameCount <= 3) {
+          log('Rendered frame: ' + img.width + 'x' + img.height);
+        }
+      };
+      img.onerror = () => {
+        log('Image decode FAILED for frame #' + frameCount + ' (' + bytes + ' bytes)');
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
+    } else {
+      log('Text message: ' + event.data);
+    }
+  };
+}
+
+function stopStream() {
+  if (ws) { ws.close(); ws = null; }
+}
+</script>
+</body>
+</html>
