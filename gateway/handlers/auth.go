@@ -27,8 +27,15 @@ type authResponse struct {
 	User  interface{} `json:"user"`
 }
 
+var registrationDisabled = true
+
 func RegisterHandler(database *sql.DB, jwtSecret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if registrationDisabled {
+			writeError(w, "registration is temporarily disabled", http.StatusForbidden)
+			return
+		}
+
 		var req registerRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeError(w, "invalid request body", http.StatusBadRequest)

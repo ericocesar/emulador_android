@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -111,24 +110,19 @@ func UploadAPKv2Handler(database *sql.DB, legacyAPKPath string) http.HandlerFunc
 			return
 		}
 
-		dir := APKDir(legacyAPKPath)
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			writeError(w, "cannot create apk dir: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		tmp := filepath.Join(dir, ".upload-"+fmt.Sprintf("%d", time.Now().UnixNano())+".tmp")
-		out, err := os.Create(tmp)
+		f, err := os.CreateTemp("", ".upload-*.tmp")
 		if err != nil {
-			writeError(w, "cannot open tmp file: "+err.Error(), http.StatusInternalServerError)
+			writeError(w, "cannot create temp file: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if _, err := io.Copy(out, file); err != nil {
-			out.Close()
+		tmp := f.Name()
+		if _, err := io.Copy(f, file); err != nil {
+			f.Close()
 			os.Remove(tmp)
 			writeError(w, "write failed: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		out.Close()
+		f.Close()
 
 		// Check if there's already a default. If not, this becomes default.
 		hasDefault := false
@@ -176,37 +170,39 @@ func SetDefaultAPKHandler(database *sql.DB) http.HandlerFunc {
 // If equal/older, deletes the temp file and reports no-op.
 func CheckWhatsAppUpdate(database *sql.DB, legacyAPKPath string) (newAPKID, msg string, err error) {
 	const url = "https://www.whatsapp.com/android/current/WhatsApp.apk"
-	dir := APKDir(legacyAPKPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", "", fmt.Errorf("mkdir: %w", err)
+	f, err := os.CreateTemp("", ".check-*.tmp")
+	if err != nil {
+		return "", "", fmt.Errorf("create temp: %w", err)
 	}
-	tmp := filepath.Join(dir, ".check-"+fmt.Sprintf("%d", time.Now().UnixNano())+".tmp")
+	tmp := f.Name()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
+		f.Close()
+		os.Remove(tmp)
 		return "", "", err
 	}
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Linux; Android 11) AstraDroid/1.0")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		f.Close()
+		os.Remove(tmp)
 		return "", "", fmt.Errorf("http fetch: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
+		f.Close()
+		os.Remove(tmp)
 		return "", "", fmt.Errorf("unexpected status %d from whatsapp.com", resp.StatusCode)
 	}
-	out, err := os.Create(tmp)
-	if err != nil {
-		return "", "", err
-	}
-	if _, err := io.Copy(out, resp.Body); err != nil {
-		out.Close()
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		f.Close()
 		os.Remove(tmp)
 		return "", "", fmt.Errorf("download: %w", err)
 	}
-	out.Close()
+	f.Close()
 
 	// Parse the downloaded file
 	meta, err := ParseAPKMeta(tmp)
