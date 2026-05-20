@@ -95,6 +95,8 @@ services:
 networks:
   interna:
     external: true
+  externa:
+    external: true
   emulador-internal:
     driver: overlay
 
