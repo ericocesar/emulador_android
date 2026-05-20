@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 )
 
@@ -27,7 +27,7 @@ func GetContainerStats(cli *client.Client, containerID string) (*ContainerStats,
 	}
 	defer resp.Body.Close()
 
-	var statsJSON types.StatsJSON
+	var statsJSON container.StatsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&statsJSON); err != nil {
 		return nil, fmt.Errorf("failed to decode stats: %w", err)
 	}

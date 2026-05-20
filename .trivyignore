@@ -1,2 +1,13 @@
-# Trivy ignore — adicione IDs de CVE para falso-positivos
-# Exemplo: CVE-2024-XXXXX
+# CVEs sem correção disponível (docker/docker client library)
+# O gateway não expõe os endpoints vulneráveis diretamente e roda com USER não-root
+
+# Moby: Authorization bypass vulnerability — fix aguardando release v29.3.1
+CVE-2026-34040
+
+# Docker: PUT /containers/{id}/archive executa binário do container no host
+# Nosso gateway não usa archive/cp operations; apenas stats e inspect
+CVE-2026-41567
+
+# Docker: Race condition em docker cp permite bind mount redirection
+# Não aplicável — não usamos docker cp no fluxo do gateway
+CVE-2026-42306

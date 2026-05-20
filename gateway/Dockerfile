@@ -7,6 +7,9 @@ RUN go mod tidy && CGO_ENABLED=0 go build -o /gateway .
 
 FROM alpine:3.19
 RUN apk add --no-cache android-tools ca-certificates tzdata docker-cli
+RUN adduser -D -g '' appuser
 COPY --from=builder /gateway /gateway
+RUN chown appuser:appuser /gateway
 EXPOSE 8080
+USER appuser
 CMD ["/gateway"]
