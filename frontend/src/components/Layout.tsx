@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Monitor, LogOut, User, Package, Key, Send, Smartphone } from 'lucide-react';
+import { LogOut, User, Package, Key, Send, Smartphone } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 interface NavItem {
@@ -51,11 +51,9 @@ export default function Layout() {
       <aside className="w-60 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
         {/* Logo */}
         <div className="px-5 py-5 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-forest-900 grid place-items-center">
-            <Monitor className="w-4 h-4 text-lime-accent" />
-          </div>
+          <img src="/logotipo.png" alt="BChatEmula" className="w-8 h-8 rounded-lg object-contain" />
           <div className="leading-tight">
-            <div className="font-bold text-[15px] text-forest-950 tracking-tight">AstraDroid</div>
+            <div className="font-bold text-[15px] text-forest-950 tracking-tight">BChatEmula</div>
             <div className="text-[10px] text-gray-400 -mt-0.5">v0.0.1 · develop</div>
           </div>
         </div>

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Monitor } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export default function RegisterPage() {
@@ -43,13 +42,11 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-indigo-600 text-white mb-4">
-            <Monitor className="w-7 h-7" />
-          </div>
+          <img src="/logotipo.png" alt="BChatEmula" className="w-14 h-14 mx-auto mb-4 object-contain" />
           <h1 className="text-2xl font-bold text-gray-900">
             Criar conta
           </h1>
-          <p className="text-gray-500 mt-1">Comece a usar o Emulador</p>
+          <p className="text-gray-500 mt-1">Comece a usar o BChatEmula</p>
         </div>
 
         <div className="card p-6">
