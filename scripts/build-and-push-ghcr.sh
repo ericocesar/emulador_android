@@ -21,7 +21,7 @@ set -euo pipefail
 #   - Trivy instalado (brew install aquasecurity/trivy/trivy)
 
 REGISTRY="${REGISTRY:-ghcr.io}"
-PLATFORM="linux/arm64"
+PLATFORM="linux/amd64"
 
 NO_CACHE=false
 for arg in "$@"; do
