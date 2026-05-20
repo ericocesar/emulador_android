@@ -2,8 +2,7 @@ version: "3.8"
 
 services:
   gateway:
-    image: emulador-gateway:latest
-    build: ./gateway
+    image: ghcr.io/ericocesar/emulador-gateway:develop
     networks:
       - interna
       - emulador-internal
@@ -38,8 +37,7 @@ services:
         - traefik.http.services.emulador-api.loadbalancer.passHostHeader=true
 
   frontend:
-    image: emulador-frontend:latest
-    build: ./frontend
+    image: ghcr.io/ericocesar/emulador-frontend:develop
     networks:
       - interna
     deploy:
