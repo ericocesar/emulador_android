@@ -1,0 +1,2 @@
+# Trivy ignore — adicione IDs de CVE para falso-positivos
+# Exemplo: CVE-2024-XXXXX
