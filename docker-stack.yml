@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   gateway:
-    image: ghcr.io/ericocesar/emulador-gateway:develop
+    image: ghcr.io/ericocesar/emulador-gateway:sha-953836b
     networks:
       - interna
       - externa
@@ -32,13 +32,15 @@ services:
         - traefik.docker.network=interna
         - traefik.http.routers.emulador-api.rule=Host(`emulador.bchat.com.br`) && (PathPrefix(`/api`) || PathPrefix(`/health`))
         - traefik.http.routers.emulador-api.entrypoints=websecure
-        - traefik.http.routers.emulador-api.tls.certresolver=le
+        - traefik.http.routers.emulador-api.tls.certresolver=cf
+        - traefik.http.routers.emulador-api.tls=true
         - traefik.http.routers.emulador-api.priority=100
         - traefik.http.services.emulador-api.loadbalancer.server.port=8080
         - traefik.http.services.emulador-api.loadbalancer.passHostHeader=true
 
   frontend:
-    image: ghcr.io/ericocesar/emulador-frontend:develop
+    image: ghcr.io/ericocesar/emulador-frontend:sha-953836b
+    user: "0:0"
     networks:
       - interna
       - externa
@@ -55,9 +57,10 @@ services:
         - traefik.docker.network=interna
         - traefik.http.routers.emulador-frontend.rule=Host(`emulador.bchat.com.br`)
         - traefik.http.routers.emulador-frontend.entrypoints=websecure
-        - traefik.http.routers.emulador-frontend.tls.certresolver=le
+        - traefik.http.routers.emulador-frontend.tls.certresolver=cf
+        - traefik.http.routers.emulador-frontend.tls=true
         - traefik.http.routers.emulador-frontend.priority=1
-        - traefik.http.services.emulador-frontend.loadbalancer.server.port=8080
+        - traefik.http.services.emulador-frontend.loadbalancer.server.port=80
 
   postgres:
     image: postgres:15-alpine
