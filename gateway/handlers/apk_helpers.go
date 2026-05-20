@@ -119,14 +119,14 @@ func APKDir(legacyAPKPath string) string {
 }
 
 // APKFilePath returns the on-disk path for a given APK record.
-func APKFilePath(legacyAPKPath string, a *models.APK) string {
-	return filepath.Join(APKDir(legacyAPKPath), a.Filename)
+func APKFilePath(apkDir string, a *models.APK) string {
+	return filepath.Join(apkDir, a.Filename)
 }
 
 // IngestAPKFile imports an APK file from the given source path into the
 // managed library, returning the inserted record. The source file is
 // moved (renamed) to <apkDir>/<uuid>.apk on success.
-func IngestAPKFile(database *sql.DB, srcPath, source string, makeDefault bool) (*models.APK, error) {
+func IngestAPKFile(database *sql.DB, srcPath, apkDir, source string, makeDefault bool) (*models.APK, error) {
 	st, err := os.Stat(srcPath)
 	if err != nil {
 		return nil, err
@@ -138,7 +138,7 @@ func IngestAPKFile(database *sql.DB, srcPath, source string, makeDefault bool) (
 	if existing, _ := db.GetAPKBySHA256(database, hash); existing != nil {
 		// Same APK already known. If the source is the legacy single-file path,
 		// remove it so we don't carry two copies on disk.
-		if srcPath != APKFilePath(srcPath, existing) {
+		if srcPath != APKFilePath(apkDir, existing) {
 			_ = os.Remove(srcPath)
 		}
 		return existing, nil
@@ -167,7 +167,7 @@ func IngestAPKFile(database *sql.DB, srcPath, source string, makeDefault bool) (
 		return nil, fmt.Errorf("insert apk row: %w", err)
 	}
 	finalName := inserted.ID + ".apk"
-	finalPath := filepath.Join(APKDir(srcPath), finalName)
+	finalPath := filepath.Join(apkDir, finalName)
 
 	if srcPath != finalPath {
 		if err := os.Rename(srcPath, finalPath); err != nil {
@@ -211,7 +211,7 @@ func IngestLegacyAPK(database *sql.DB, legacyAPKPath string) {
 		return
 	}
 	makeDefault := len(any) == 0
-	rec, err := IngestAPKFile(database, legacyAPKPath, "legacy", makeDefault)
+	rec, err := IngestAPKFile(database, legacyAPKPath, APKDir(legacyAPKPath), "legacy", makeDefault)
 	if err != nil {
 		log.Printf("legacy ingest skipped: %v", err)
 		return

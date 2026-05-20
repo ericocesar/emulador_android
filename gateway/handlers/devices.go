@@ -86,10 +86,10 @@ func CreateDeviceHandler(database *sql.DB, dockerCli *client.Client, adbClient *
 				writeError(w, "apk_id not found", http.StatusBadRequest)
 				return
 			}
-			apkPathToInstall = APKFilePath(whatsappAPK, rec)
+			apkPathToInstall = APKFilePath(APKDir(whatsappAPK), rec)
 			resolvedAPKID = rec.ID
 		} else if def, err := db.GetDefaultAPK(database); err == nil && def != nil {
-			apkPathToInstall = APKFilePath(whatsappAPK, def)
+			apkPathToInstall = APKFilePath(APKDir(whatsappAPK), def)
 			resolvedAPKID = def.ID
 		}
 

@@ -129,7 +129,7 @@ func UploadAPKv2Handler(database *sql.DB, legacyAPKPath string) http.HandlerFunc
 		if def, _ := db.GetDefaultAPK(database); def != nil {
 			hasDefault = true
 		}
-		rec, err := IngestAPKFile(database, tmp, "upload", !hasDefault)
+		rec, err := IngestAPKFile(database, tmp, APKDir(legacyAPKPath), "upload", !hasDefault)
 		if err != nil {
 			os.Remove(tmp)
 			writeError(w, "ingest failed: "+err.Error(), http.StatusInternalServerError)
@@ -217,7 +217,7 @@ func CheckWhatsAppUpdate(database *sql.DB, legacyAPKPath string) (newAPKID, msg 
 		return "", fmt.Sprintf("nenhuma versão nova · whatsapp.com tem %s, já temos %s", meta.VersionName, latest.VersionName), nil
 	}
 	// Ingest. Don't auto-mark as default — user opt-in.
-	rec, err := IngestAPKFile(database, tmp, "auto-download", false)
+	rec, err := IngestAPKFile(database, tmp, APKDir(legacyAPKPath), "auto-download", false)
 	if err != nil {
 		// IngestAPKFile may have removed the tmp on duplicate; check anyway
 		os.Remove(tmp)
