@@ -3,6 +3,7 @@ version: "3.8"
 services:
   gateway:
     image: ghcr.io/ericocesar/emulador-gateway:develop
+    env_file: .env
     networks:
       - interna
       - externa
@@ -61,6 +62,7 @@ services:
 
   postgres:
     image: postgres:15-alpine
+    env_file: .env
     networks:
       - emulador-internal
     environment:
