@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -37,8 +38,8 @@ func ListDevicesHandler(database *sql.DB) http.HandlerFunc {
 
 		devices, err := db.GetDevicesByUserID(database, userID)
 		if err != nil {
-			log.Printf("error listing devices: %v", err)
-			writeError(w, "failed to list devices", http.StatusInternalServerError)
+			log.Printf("[ListDevicesHandler] error listing devices for user %s: %v", userID, err)
+			writeError(w, "failed to list devices: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
@@ -156,10 +157,13 @@ func CreateDeviceHandler(database *sql.DB, dockerCli *client.Client, adbClient *
 func provisionDevice(database *sql.DB, adbClient *adb.ADBClient, deviceID string, adbPort int, whatsappAPK string) {
 	log.Printf("starting provisioning for device %s on port %d", deviceID, adbPort)
 
-	bootCtx, bootCancel := timeoutContext(5 * time.Minute)
+	timeout := getBootTimeout()
+	log.Printf("device %s boot timeout set to %v", deviceID, timeout)
+
+	bootCtx, bootCancel := timeoutContext(timeout)
 	defer bootCancel()
 
-	if err := adbClient.WaitForBoot(bootCtx, adbPort, 5*time.Minute); err != nil {
+	if err := adbClient.WaitForBoot(bootCtx, adbPort, timeout); err != nil {
 		log.Printf("device %s boot failed: %v", deviceID, err)
 		db.UpdateDeviceStatus(database, deviceID, models.StatusError, "boot timeout: "+err.Error())
 		db.CreateDeviceLog(database, deviceID, "boot", "failed: "+err.Error())
@@ -192,6 +196,17 @@ func provisionDevice(database *sql.DB, adbClient *adb.ADBClient, deviceID string
 	db.UpdateDeviceStatus(database, deviceID, models.StatusReady, "")
 	db.CreateDeviceLog(database, deviceID, "ready", "device is ready")
 	log.Printf("device %s provisioning complete", deviceID)
+}
+
+func getBootTimeout() time.Duration {
+	if v := os.Getenv("BOOT_TIMEOUT_MINUTES"); v != "" {
+		var minutes int
+		if _, err := fmt.Sscanf(v, "%d", &minutes); err == nil && minutes > 0 {
+			return time.Duration(minutes) * time.Minute
+		}
+		log.Printf("invalid BOOT_TIMEOUT_MINUTES=%q, using default 5m", v)
+	}
+	return 5 * time.Minute
 }
 
 func timeoutContext(d time.Duration) (context.Context, context.CancelFunc) {
@@ -362,10 +377,14 @@ func StartDeviceHandler(database *sql.DB, dockerCli *client.Client, adbClient *a
 // provisioning). Just waits for Android boot and flips status to ready.
 func waitForBootAndMarkReady(database *sql.DB, adbClient *adb.ADBClient, deviceID string, adbPort int) {
 	log.Printf("waitForBoot: device %s on port %d", deviceID, adbPort)
-	bootCtx, bootCancel := timeoutContext(5 * time.Minute)
+
+	timeout := getBootTimeout()
+	log.Printf("waitForBoot: device %s timeout = %v", deviceID, timeout)
+
+	bootCtx, bootCancel := timeoutContext(timeout)
 	defer bootCancel()
 
-	if err := adbClient.WaitForBoot(bootCtx, adbPort, 5*time.Minute); err != nil {
+	if err := adbClient.WaitForBoot(bootCtx, adbPort, timeout); err != nil {
 		log.Printf("waitForBoot: device %s boot failed: %v", deviceID, err)
 		db.UpdateDeviceStatus(database, deviceID, models.StatusError, "boot timeout: "+err.Error())
 		db.CreateDeviceLog(database, deviceID, "start", "boot failed: "+err.Error())

@@ -23,26 +23,28 @@ func (c *ADBClient) Address(port int) string {
 
 func (c *ADBClient) WaitForBoot(ctx context.Context, port int, timeout time.Duration) error {
 	addr := c.Address(port)
-	deadline := time.After(timeout)
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 
-	// First, try to connect
+	connectPhaseStart := time.Now()
+	log.Printf("WaitForBoot: attempting ADB connect to %s (timeout=%v)", addr, timeout)
+
+	// Phase 1: Connect to ADB daemon
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
-		case <-deadline:
-			return fmt.Errorf("timeout waiting for device boot at %s", addr)
+			return fmt.Errorf("context cancelled while waiting for ADB connect at %s: %w", addr, ctx.Err())
 		case <-ticker.C:
 			connectOut, err := exec.CommandContext(ctx, "adb", "connect", addr).CombinedOutput()
 			if err != nil {
-				log.Printf("adb connect %s: %v (%s)", addr, err, string(connectOut))
+				elapsed := time.Since(connectPhaseStart).Round(time.Second)
+				log.Printf("adb connect %s failed (elapsed=%v): %v (output: %s)", addr, elapsed, err, string(connectOut))
 				continue
 			}
 			outStr := string(connectOut)
 			if strings.Contains(outStr, "connected") || strings.Contains(outStr, "already connected") {
-				log.Printf("adb connected to %s", addr)
+				elapsed := time.Since(connectPhaseStart).Round(time.Second)
+				log.Printf("adb connected to %s (after %v)", addr, elapsed)
 				goto checkBoot
 			}
 			log.Printf("adb connect %s: %s", addr, outStr)
@@ -50,24 +52,29 @@ func (c *ADBClient) WaitForBoot(ctx context.Context, port int, timeout time.Dura
 	}
 
 checkBoot:
-	// Now wait for sys.boot_completed
+	bootPhaseStart := time.Now()
+	log.Printf("WaitForBoot: waiting for sys.boot_completed on %s", addr)
+
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
-		case <-deadline:
-			return fmt.Errorf("timeout waiting for boot_completed at %s", addr)
+			return fmt.Errorf("context cancelled while waiting for boot_completed at %s: %w", addr, ctx.Err())
 		case <-ticker.C:
 			out, err := exec.CommandContext(ctx, "adb", "-s", addr, "shell", "getprop", "sys.boot_completed").CombinedOutput()
 			if err != nil {
-				log.Printf("waiting for boot_completed on %s: %v", addr, err)
+				elapsed := time.Since(bootPhaseStart).Round(time.Second)
+				log.Printf("boot_completed check on %s failed (elapsed=%v): %v (output: %s)", addr, elapsed, err, strings.TrimSpace(string(out)))
 				continue
 			}
-			if strings.TrimSpace(string(out)) == "1" {
-				log.Printf("device %s boot completed", addr)
+			val := strings.TrimSpace(string(out))
+			if val == "1" {
+				elapsed := time.Since(bootPhaseStart).Round(time.Second)
+				log.Printf("device %s boot completed (after %v)", addr, elapsed)
 				return nil
 			}
-			log.Printf("device %s boot_completed = %q", addr, strings.TrimSpace(string(out)))
+			if val != "" {
+				log.Printf("device %s boot_completed = %q", addr, val)
+			}
 		}
 	}
 }
