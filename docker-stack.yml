@@ -3,7 +3,6 @@ version: "3.8"
 services:
   gateway:
     image: ghcr.io/ericocesar/emulador-gateway:develop
-    env_file: .env
     networks:
       - interna
       - externa
@@ -12,9 +11,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - whatsapp-apk:/apk:rw
     environment:
-      - DATABASE_URL=postgres://emulador:${DB_PASSWORD}@postgres:5432/emulador?sslmode=disable
+      - DATABASE_URL=postgres://emulador:EmuladorDB2026Bolt!@postgres:5432/emulador?sslmode=disable
       - REDIS_URL=redis://redis:6379/0
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=55823f7608d92c0922652664b5503021de76f41b907028b09a0d501e88425be2
       - ADB_HOST=172.17.0.1
       - WHATSAPP_APK_PATH=/apk/whatsapp.apk
       - PORT=8080
@@ -31,9 +30,9 @@ services:
       labels:
         - traefik.enable=true
         - traefik.docker.network=interna
-        - traefik.http.routers.emulador-api.rule=Host(`emulador.trecofantastico.com.br`) && (PathPrefix(`/api`) || PathPrefix(`/health`))
+        - traefik.http.routers.emulador-api.rule=Host(`emulador.bchat.com.br`) && (PathPrefix(`/api`) || PathPrefix(`/health`))
         - traefik.http.routers.emulador-api.entrypoints=websecure
-        - traefik.http.routers.emulador-api.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.emulador-api.tls.certresolver=le
         - traefik.http.routers.emulador-api.priority=100
         - traefik.http.services.emulador-api.loadbalancer.server.port=8080
         - traefik.http.services.emulador-api.loadbalancer.passHostHeader=true
@@ -54,21 +53,20 @@ services:
       labels:
         - traefik.enable=true
         - traefik.docker.network=interna
-        - traefik.http.routers.emulador-frontend.rule=Host(`emulador.trecofantastico.com.br`)
+        - traefik.http.routers.emulador-frontend.rule=Host(`emulador.bchat.com.br`)
         - traefik.http.routers.emulador-frontend.entrypoints=websecure
-        - traefik.http.routers.emulador-frontend.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.emulador-frontend.tls.certresolver=le
         - traefik.http.routers.emulador-frontend.priority=1
-        - traefik.http.services.emulador-frontend.loadbalancer.server.port=80
+        - traefik.http.services.emulador-frontend.loadbalancer.server.port=8080
 
   postgres:
     image: postgres:15-alpine
-    env_file: .env
     networks:
       - emulador-internal
     environment:
       - POSTGRES_DB=emulador
       - POSTGRES_USER=emulador
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_PASSWORD=EmuladorDB2026Bolt!
     volumes:
       - emulador-pgdata:/var/lib/postgresql/data
     deploy:
